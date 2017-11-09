@@ -70,7 +70,7 @@ def test_mp_message_board_available_to_all_tests(testdir):
 
 
         def test_two(mp_message_board):
-            for _ in range(4):
+            for _ in range(40):
                 if 'hello' in mp_message_board:
                     return True
                 sleep(.25)
