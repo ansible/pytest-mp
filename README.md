@@ -1,5 +1,7 @@
 # pytest-mp: Multiprocess and segregate tests
 
+[![Build Status](https://travis-ci.org/ansible/pytest-mp.svg?branch=master)](https://travis-ci.org/ansible/pytest-mp)
+
 **pytest-mp** is a minimalist approach to distributing and segregating pytest tests across processes using python's [multiprocessing](https://docs.python.org/2/library/multiprocessing.html) library and is heavily inspired by [pytest-concurrent](https://github.com/reverbc/pytest-concurrent) and [pytest-xdist](https://github.com/pytest-dev/pytest-xdist).  As a very early beta, it doesn't pledge or intend to support the majority of platforms or use cases.  Design is based on supporting slow, io-bound testing with often tedious system under test configuration that can benefit from running several tests at one time.
 
 ### Installation and Basic Usage

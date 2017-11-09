@@ -3,7 +3,7 @@ python: 2.7
 cache: pip
 
 env:
-  - TOXENV=py27
+  - TOXENV=test
   - TOXENV=lint
 
 install:
