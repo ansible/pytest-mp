@@ -3,7 +3,7 @@ from _pytest.terminal import TerminalReporter
 from pytest_mp.plugin import manager
 
 
-# # Taken from pytest/_pytest/terminal.py
+# Taken from pytest/_pytest/terminal.py
 # and made process safe by avoiding use of `setdefault()`
 # Thanks to pytest-concurrent for approach
 
