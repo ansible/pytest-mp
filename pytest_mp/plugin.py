@@ -233,17 +233,21 @@ def run_batched_tests(batches, session, num_processes):
             submit_batch_to_process(batches[batch], session)
         elif strategy == 'isolated_free':
             synchronization['processes_empty'].wait()
+            synchronization['processes_empty'].clear()
             for test in batches[batch]['tests']:
                 synchronization['proc_signal'].wait()
                 synchronization['proc_signal'].clear()
                 submit_test_to_process(test, session)
             synchronization['processes_empty'].wait()
+            synchronization['processes_empty'].clear()
         elif strategy == 'isolated_serial':
             synchronization['processes_empty'].wait()
+            synchronization['processes_empty'].clear()
             synchronization['proc_signal'].wait()
             synchronization['proc_signal'].clear()
             submit_batch_to_process(batches[batch], session)
             synchronization['processes_empty'].wait()
+            synchronization['processes_empty'].clear()
         else:
             raise Exception('Unknown strategy {}'.format(strategy))
 
