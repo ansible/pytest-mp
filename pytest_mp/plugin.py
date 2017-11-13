@@ -186,9 +186,9 @@ def run_isolated_serial_batch(batch, final_test, session):
 
 def submit_test_to_process(test, session):
     proc = multiprocessing.Process(target=run_test, args=(test, None, session))
-    proc.start()
-    pid = proc.pid
     with synchronization['processes_lock']:
+        proc.start()
+        pid = proc.pid
         synchronization['processes'][pid] = True
 
 
@@ -202,9 +202,9 @@ def submit_batch_to_process(batch, session):
                 raise session.Interrupted(session.shouldstop)
 
     proc = multiprocessing.Process(target=run_batch, args=(batch['tests'],))
-    proc.start()
-    pid = proc.pid
     with synchronization['processes_lock']:
+        proc.start()
+        pid = proc.pid
         synchronization['processes'][pid] = True
 
 
@@ -257,12 +257,13 @@ def run_batched_tests(batches, session, num_processes):
 def process_loop(num_processes):
     while True:
         with synchronization['processes_lock']:
-
             pid_list = list(synchronization['processes'].keys())
             if not pid_list:
                 synchronization['processes_empty'].set()
             elif synchronization['processes_empty'].is_set():
                 synchronization['processes_empty'].clear()
+
+            num_pids = len(pid_list)
 
             for pid in pid_list:
                 try:
@@ -272,9 +273,11 @@ def process_loop(num_processes):
                 except psutil.NoSuchProcess:
                     pass
                 del synchronization['processes'][pid]
+                num_pids -= 1
+
         if synchronization['reap_process_loop'].is_set() and len(synchronization['processes']) == 0:
             return
-        if len(synchronization['processes']) < num_processes and not synchronization['proc_signal'].is_set():
+        if num_pids < num_processes and not synchronization['proc_signal'].is_set():
             synchronization['proc_signal'].set()
 
         time.sleep(.001)  # TODO: Use a callback/Event() system
