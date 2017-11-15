@@ -1,4 +1,4 @@
-# pytest-mp: Multiprocess and segregate tests
+# pytest-mp: Multiprocess and Segregate Tests
 
 [![Build Status](https://travis-ci.org/ansible/pytest-mp.svg?branch=master)](https://travis-ci.org/ansible/pytest-mp)
 
@@ -49,7 +49,7 @@ def test_five(fixture_three):
 ```
 
 1. The **`free`** strategy distributes each test in a group to a fresh pytest session in a child process that invokes all sourced fixtures (regardless of scope), runs that single test, and calls all registered finalizers before joining.  This is the default test strategy for grouped and ungrouped tests.
-1. The **`serial`** strategy distributes each group of tests to a fresh pytest session in a child process that invokes all sourced fixtures (regardless of scope) and runs each test serially in the same process before tearing down.  This group is best suited for tests that require shared, highly-scoped fixtures that won't affect the state of the system under test for other test.
+1. The **`serial`** strategy distributes each group of tests to a fresh pytest session in a child process that invokes all sourced fixtures (regardless of scope) and runs each test serially in the same process before tearing down.  This group is best suited for tests that require shared, highly-scoped fixtures that won't affect the state of the system under test for other tests.
 1. The **`isolated_free`** strategy is the same as `free`, but all tests in this group will be run separately in time from any other test group.  Best suited for tests with noisy or destructive fixtures that would affect the requirements of other tests, but that don't require a shared process.
 1. The **`isolated_serial`** strategy is the same as `serial`, but all tests in this group will be run separate in time from any other test group, essentially like a regular pytest invocation.  Best suited for tests with shared, noisy, or destructive fixtures.  Absolute pytest execution will be limited to a single process while these tests are running.
 
