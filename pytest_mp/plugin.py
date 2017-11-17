@@ -340,7 +340,7 @@ def pytest_configure(config):
         from pytest_mp.terminal import MPTerminalReporter
         mp_reporter = MPTerminalReporter(standard_reporter)
         config.pluginmanager.unregister(standard_reporter)
-        config.pluginmanager.register(mp_reporter, 'mpterminalreporter')
+        config.pluginmanager.register(mp_reporter, 'terminalreporter')
 
     if config.option.xmlpath is not None:
         from pytest_mp.junitxml import MPLogXML
