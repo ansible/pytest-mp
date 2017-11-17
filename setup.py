@@ -2,7 +2,7 @@
 import sys
 
 from setuptools.command.test import test as TestCommand
-from setuptools import setup
+from setuptools import setup, find_packages
 
 
 version = '0.0.1'
@@ -31,6 +31,7 @@ setup(name='pytest-mp',
       description='A test batcher for multiprocessed Pytest runs',
       long_description_markdown_filename='README.md',
       py_modules=['pytest_mp'],
+      packages=find_packages(),
       install_requires=['pytest', 'psutil'],
       setup_requires=['setuptools-markdown'],
       tests_require=['pytest', 'tox'],
