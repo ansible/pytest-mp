@@ -331,9 +331,14 @@ def pytest_runtest_logreport(report):
 
 @pytest.mark.trylast
 def pytest_configure(config):
+    config.addinivalue_line('markers',
+                            "mp_group('GroupName', strategy): test (suite) is in named "
+                            "grouped w/ desired strategy: 'free' (default), 'serial', "
+                            "'isolated_free', or 'isolated_serial'.")
+
     if config.option.use_mp is None:
         if not config.getini('mp'):
-            return False
+            return
 
     standard_reporter = config.pluginmanager.get_plugin('terminalreporter')
     if standard_reporter:
