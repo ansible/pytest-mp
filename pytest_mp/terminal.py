@@ -7,6 +7,10 @@ from pytest_mp.plugin import manager
 # and made process safe by avoiding use of `setdefault()`
 # Thanks to pytest-concurrent for approach
 
+# Also includes pytest-instafail functionality
+# :copyright: (c) 2013-2016 by Janne Vanhala.
+# since it isn't compatible w/ MPTerminalReporter
+
 
 class MPTerminalReporter(TerminalReporter):
 
@@ -15,6 +19,23 @@ class MPTerminalReporter(TerminalReporter):
         self._tw = self.writer = reporter.writer  # some monkeypatching needed to access existing writer
         self.stats = manager.dict()
         self.stats_lock = manager.Lock()
+
+    def pytest_collectreport(self, report):
+        # Show errors occurred during the collection instantly.
+        TerminalReporter.pytest_collectreport(self, report)
+        if self.config.option.instafail:
+            if report.failed:
+                if self.isatty:
+                    self.rewrite('')  # erase the "collecting"/"collected" message
+                self.print_failure(report)
+
+    def summary_failures(self):
+        if not self.config.option.instafail:
+            TerminalReporter.summary_failures(self)
+
+    def summary_errors(self):
+        if not self.config.option.instafail:
+            TerminalReporter.summary_errors(self)
 
     def pytest_runtest_logreport(self, report):
         rep = report
@@ -56,3 +77,25 @@ class MPTerminalReporter(TerminalReporter):
                 self._tw.write(word, **markup)
                 self._tw.write(" " + line)
                 self.currentfspath = -2
+
+        if self.config.option.instafail and report.failed and not hasattr(report, 'wasxfail'):
+            if self.verbosity <= 0:
+                self._tw.line()
+            self.print_failure(report)
+
+    def print_failure(self, report):
+        if self.config.option.tbstyle != "no":
+            if self.config.option.tbstyle == "line":
+                line = self._getcrashline(report)
+                self.write_line(line)
+            else:
+                msg = self._getfailureheadline(report)
+                if not hasattr(report, 'when'):
+                    msg = "ERROR collecting " + msg
+                elif report.when == "setup":
+                    msg = "ERROR at setup of " + msg
+                elif report.when == "teardown":
+                    msg = "ERROR at teardown of " + msg
+                self.write_sep("_", msg)
+                if not self.config.getvalue("usepdb"):
+                    self._outrep_summary(report)

@@ -19,6 +19,13 @@ def pytest_addoption(parser):
     parser.addini('mp', mp_help, type='bool', default=False)
     parser.addini('num_processes', np_help)
 
+    # Includes pytest-instafail functionality
+    # :copyright: (c) 2013-2016 by Janne Vanhala.
+    # since it isn't compatible w/ MPTerminalReporter
+
+    group.addoption('--instafail', action="store_true", dest="instafail", default=False,
+                    help="show failures and errors instantly as they occur (disabled by default).")
+
 
 manager = multiprocessing.Manager()
 # Used for "global" synchronization access.
