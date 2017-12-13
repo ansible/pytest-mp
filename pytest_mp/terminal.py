@@ -19,6 +19,7 @@ class MPTerminalReporter(TerminalReporter):
         self._tw = self.writer = reporter.writer  # some monkeypatching needed to access existing writer
         self.stats = manager.dict()
         self.stats_lock = manager.Lock()
+        self._progress_items_reported_proxy = manager.Value('i', 0)
 
     def pytest_collectreport(self, report):
         # Show errors occurred during the collection instantly.
@@ -42,7 +43,7 @@ class MPTerminalReporter(TerminalReporter):
         res = self.config.hook.pytest_report_teststatus(report=rep)
         cat, letter, word = res
 
-        # This is the only difference from the pytest core TerminalReporter.
+        # This helps make TerminalReporter process-safe.
         with self.stats_lock:
             cat_list = self.stats.get(cat, [])
             cat_list.append(rep)
@@ -52,6 +53,11 @@ class MPTerminalReporter(TerminalReporter):
         if not letter and not word:
             # probably passed setup/teardown
             return
+
+        # This helps make TerminalReporter process-safe.
+        with self.stats_lock:
+            self._progress_items_reported_proxy.value += 1
+
         if self.verbosity <= 0:
             if not hasattr(rep, 'node') and self.showfspath:
                 self.write_fspath_result(rep.nodeid, letter)
@@ -74,6 +80,10 @@ class MPTerminalReporter(TerminalReporter):
                 self.ensure_newline()
                 if hasattr(rep, 'node'):
                     self._tw.write("[%s] " % rep.node.gateway.id)
+                if getattr(self, '_show_progress_info', False):
+                    self._tw.write(self._get_progress_information_message() + " ", cyan=True)
+                else:
+                    self._tw.write(' ')
                 self._tw.write(word, **markup)
                 self._tw.write(" " + line)
                 self.currentfspath = -2
@@ -99,3 +109,23 @@ class MPTerminalReporter(TerminalReporter):
                 self.write_sep("_", msg)
                 if not self.config.getvalue("usepdb"):
                     self._outrep_summary(report)
+
+    def _write_progress_if_past_edge(self):
+        if not self._show_progress_info:
+            return
+        last_item = self._progress_items_reported_proxy.value == self._session.testscollected
+        if last_item:
+            self._write_progress_information_filling_space()
+            return
+
+        past_edge = self._tw.chars_on_current_line + self._PROGRESS_LENGTH + 1 >= self._screen_width
+        if past_edge:
+            msg = self._get_progress_information_message()
+            self._tw.write(msg + '\n', cyan=True)
+
+    def _get_progress_information_message(self):
+        collected = self._session.testscollected
+        if collected:
+            progress = self._progress_items_reported_proxy.value * 100 // collected
+            return ' [{:3d}%]'.format(progress)
+        return ' [100%]'

@@ -279,6 +279,8 @@ def process_loop(num_processes):
                         continue
                 except psutil.NoSuchProcess:
                     pass
+                except IOError:
+                    continue
                 del synchronization['processes'][pid]
                 num_pids -= 1
 
