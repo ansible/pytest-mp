@@ -1,7 +1,5 @@
 from _pytest.terminal import TerminalReporter
 
-from pytest_mp.plugin import manager
-
 
 # Taken from pytest/_pytest/terminal.py
 # and made process safe by avoiding use of `setdefault()`
@@ -14,7 +12,7 @@ from pytest_mp.plugin import manager
 
 class MPTerminalReporter(TerminalReporter):
 
-    def __init__(self, reporter):
+    def __init__(self, reporter, manager):
         TerminalReporter.__init__(self, reporter.config)
         self._tw = self.writer = reporter.writer  # some monkeypatching needed to access existing writer
         self.stats = manager.dict()

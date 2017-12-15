@@ -371,7 +371,7 @@ def pytest_configure(config):
     standard_reporter = config.pluginmanager.get_plugin('terminalreporter')
     if standard_reporter:
         from pytest_mp.terminal import MPTerminalReporter
-        mp_reporter = MPTerminalReporter(standard_reporter)
+        mp_reporter = MPTerminalReporter(standard_reporter, manager)
         config.pluginmanager.unregister(standard_reporter)
         config.pluginmanager.register(mp_reporter, 'terminalreporter')
 
@@ -381,5 +381,5 @@ def pytest_configure(config):
         synchronization['node_reporters_lock'] = manager.Lock()
         xmlpath = config.option.xmlpath
         config.pluginmanager.unregister(config._xml)
-        config._xml = MPLogXML(xmlpath, config.option.junitprefix, config.getini("junit_suite_name"))
+        config._xml = MPLogXML(xmlpath, config.option.junitprefix, config.getini("junit_suite_name"), manager)
         config.pluginmanager.register(config._xml, 'mpjunitxml')

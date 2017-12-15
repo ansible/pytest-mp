@@ -5,7 +5,7 @@ import os
 from _pytest.junitxml import _NodeReporter, LogXML, Junit
 import py
 
-from pytest_mp.plugin import synchronization, manager
+from pytest_mp.plugin import synchronization
 
 
 # Python 2.X and 3.X compatibility
@@ -34,7 +34,7 @@ class MPNodeReporter(_NodeReporter):
 
 class MPLogXML(LogXML):
 
-    def __init__(self, logfile, prefix, suite_name="pytest"):
+    def __init__(self, logfile, prefix, suite_name="pytest", manager=None):
         LogXML.__init__(self, logfile, prefix, suite_name)
         self.stats = manager.dict()
         self.stats['error'] = 0
