@@ -304,7 +304,7 @@ def pytest_runtestloop(session):
     batches = batch_tests(session)
 
     if use_mp and num_processes:
-        synchronization['stats'] = multiprocessing.Manager().dict()
+        synchronization['stats'] = manager.dict()
         synchronization['stats_lock'] = multiprocessing.Lock()
         synchronization['stats']['failed'] = False
 
@@ -312,7 +312,7 @@ def pytest_runtestloop(session):
         synchronization['processes_empty'] = multiprocessing.Event()
         synchronization['reap_process_loop'] = multiprocessing.Event()
         synchronization['processes_lock'] = multiprocessing.Lock()
-        synchronization['processes'] = multiprocessing.Manager().dict()
+        synchronization['processes'] = manager.dict()
 
         proc_loop = multiprocessing.Process(target=process_loop, args=(num_processes,))
         proc_loop.start()
