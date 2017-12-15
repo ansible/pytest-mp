@@ -196,7 +196,8 @@ def submit_test_to_process(test, session):
     with synchronization['processes_lock']:
         proc.start()
         pid = proc.pid
-        synchronization['processes'][pid] = True
+        synchronization['running_pids'][pid] = True
+        synchronization['processes'][pid] = proc
 
 
 def submit_batch_to_process(batch, session):
@@ -212,7 +213,16 @@ def submit_batch_to_process(batch, session):
     with synchronization['processes_lock']:
         proc.start()
         pid = proc.pid
-        synchronization['processes'][pid] = True
+        synchronization['running_pids'][pid] = True
+        synchronization['processes'][pid] = proc
+
+
+def reap_finished_processes():
+    with synchronization['processes_lock']:
+        for pid in list(synchronization['finished_pids'].keys()):
+            synchronization['processes'][pid].join()
+            del synchronization['processes'][pid]
+            del synchronization['finished_pids'][pid]
 
 
 def run_batched_tests(batches, session, num_processes):
@@ -234,10 +244,12 @@ def run_batched_tests(batches, session, num_processes):
                 synchronization['proc_signal'].wait()
                 synchronization['proc_signal'].clear()
                 submit_test_to_process(test, session)
+                reap_finished_processes()
         elif strategy == 'serial':
             synchronization['proc_signal'].wait()
             synchronization['proc_signal'].clear()
             submit_batch_to_process(batches[batch], session)
+            reap_finished_processes()
         elif strategy == 'isolated_free':
             synchronization['processes_empty'].wait()
             synchronization['processes_empty'].clear()
@@ -245,6 +257,7 @@ def run_batched_tests(batches, session, num_processes):
                 synchronization['proc_signal'].wait()
                 synchronization['proc_signal'].clear()
                 submit_test_to_process(test, session)
+                reap_finished_processes()
             synchronization['processes_empty'].wait()
             synchronization['processes_empty'].clear()
         elif strategy == 'isolated_serial':
@@ -253,6 +266,7 @@ def run_batched_tests(batches, session, num_processes):
             synchronization['proc_signal'].wait()
             synchronization['proc_signal'].clear()
             submit_batch_to_process(batches[batch], session)
+            reap_finished_processes()
             synchronization['processes_empty'].wait()
             synchronization['processes_empty'].clear()
         else:
@@ -264,7 +278,7 @@ def run_batched_tests(batches, session, num_processes):
 def process_loop(num_processes):
     while True:
         with synchronization['processes_lock']:
-            pid_list = list(synchronization['processes'].keys())
+            pid_list = list(synchronization['running_pids'].keys())
             if not pid_list:
                 synchronization['processes_empty'].set()
             elif synchronization['processes_empty'].is_set():
@@ -281,10 +295,11 @@ def process_loop(num_processes):
                     pass
                 except IOError:
                     continue
-                del synchronization['processes'][pid]
+                del synchronization['running_pids'][pid]
+                synchronization['finished_pids'][pid] = True
                 num_pids -= 1
 
-        if synchronization['reap_process_loop'].is_set() and len(synchronization['processes']) == 0:
+        if synchronization['reap_process_loop'].is_set() and len(synchronization['running_pids']) == 0:
             return
         if num_pids < num_processes and not synchronization['proc_signal'].is_set():
             synchronization['proc_signal'].set()
@@ -312,7 +327,9 @@ def pytest_runtestloop(session):
         synchronization['processes_empty'] = multiprocessing.Event()
         synchronization['reap_process_loop'] = multiprocessing.Event()
         synchronization['processes_lock'] = multiprocessing.Lock()
-        synchronization['processes'] = manager.dict()
+        synchronization['running_pids'] = manager.dict()
+        synchronization['finished_pids'] = manager.dict()
+        synchronization['processes'] = dict()
 
         proc_loop = multiprocessing.Process(target=process_loop, args=(num_processes,))
         proc_loop.start()
