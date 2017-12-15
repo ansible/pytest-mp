@@ -219,10 +219,12 @@ def submit_batch_to_process(batch, session):
 
 def reap_finished_processes():
     with synchronization['processes_lock']:
-        for pid in list(synchronization['finished_pids'].keys()):
-            synchronization['processes'][pid].join()
-            del synchronization['processes'][pid]
-            del synchronization['finished_pids'][pid]
+        pid_list = list(synchronization['finished_pids'].keys())
+
+    for pid in pid_list:
+        synchronization['processes'][pid].join()
+        del synchronization['processes'][pid]
+        del synchronization['finished_pids'][pid]
 
 
 def run_batched_tests(batches, session, num_processes):
