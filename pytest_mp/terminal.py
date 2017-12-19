@@ -17,7 +17,7 @@ class MPTerminalReporter(TerminalReporter):
         self._tw = self.writer = reporter.writer  # some monkeypatching needed to access existing writer
         self.manager = manager
         self.stats = dict()
-        self.stat_keys = ['passed', 'failed', 'error', 'skipped', 'warnings', 'deselected', 'xpassed', 'xfailed', '']
+        self.stat_keys = ['passed', 'failed', 'error', 'skipped', 'warnings', 'xpassed', 'xfailed', '']
         for key in self.stat_keys:
             self.stats[key] = manager.list()
         self.stats_lock = manager.Lock()
