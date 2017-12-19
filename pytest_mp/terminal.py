@@ -15,7 +15,11 @@ class MPTerminalReporter(TerminalReporter):
     def __init__(self, reporter, manager):
         TerminalReporter.__init__(self, reporter.config)
         self._tw = self.writer = reporter.writer  # some monkeypatching needed to access existing writer
-        self.stats = manager.dict()
+        self.manager = manager
+        self.stats = dict()
+        self.stat_keys = ['passed', 'failed', 'error', 'skipped', 'warnings', 'deselected', 'xpassed', 'xfailed', '']
+        for key in self.stat_keys:
+            self.stats[key] = manager.list()
         self.stats_lock = manager.Lock()
         self._progress_items_reported_proxy = manager.Value('i', 0)
 
@@ -43,9 +47,12 @@ class MPTerminalReporter(TerminalReporter):
 
         # This helps make TerminalReporter process-safe.
         with self.stats_lock:
-            cat_list = self.stats.get(cat, [])
-            cat_list.append(rep)
-            self.stats[cat] = cat_list
+            if cat in self.stat_keys:
+                self.stats[cat].append(rep)
+            else:  # not expected and going to be dropped.  TODO: fix this.
+                cat_list = self.stats.get(cat, [])
+                cat_list.append(rep)
+                self.stats[cat] = cat_list
 
         self._tests_ran = True
         if not letter and not word:
