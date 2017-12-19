@@ -279,7 +279,6 @@ def run_batched_tests(batches, session, num_processes):
             raise Exception('Unknown strategy {}'.format(strategy))
 
     synchronization['no_running_tests'].wait()
-    synchronization['reap_process_loop'].set()
     reap_finished_processes()
 
 
