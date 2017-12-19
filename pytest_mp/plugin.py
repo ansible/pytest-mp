@@ -1,7 +1,6 @@
 from contextlib import contextmanager
 import multiprocessing
 import collections
-import time
 
 import psutil
 import pytest
@@ -176,45 +175,52 @@ def batch_tests(session):
     return batches
 
 
-def run_test(test, next_test, session):
+def run_test(test, next_test, session, finished_signal=None):
     test.config.hook.pytest_runtest_protocol(item=test, nextitem=next_test)
     if session.shouldstop:
         raise session.Interrupted(session.shouldstop)
+    if finished_signal:
+        finished_signal.set()
 
 
-def run_isolated_serial_batch(batch, final_test, session):
+def run_isolated_serial_batch(batch, final_test, session, finished_signal=None):
     tests = batch['tests']
     for i, test in enumerate(tests):
         next_test = tests[i + 1] if i + 1 < len(tests) else None
         next_test = final_test or next_test
         run_test(test, next_test, session)
+    if finished_signal:
+        finished_signal.set()
     return
 
 
 def submit_test_to_process(test, session):
-    proc = multiprocessing.Process(target=run_test, args=(test, None, session))
+    proc = multiprocessing.Process(target=run_test, args=(test, None, session, synchronization['trigger_process_loop']))
     with synchronization['processes_lock']:
         proc.start()
         pid = proc.pid
         synchronization['running_pids'][pid] = True
         synchronization['processes'][pid] = proc
+    synchronization['trigger_process_loop'].set()
 
 
 def submit_batch_to_process(batch, session):
 
-    def run_batch(tests):
+    def run_batch(tests, finished_signal):
         for i, test in enumerate(tests):
             next_test = tests[i + 1] if i + 1 < len(tests) else None
             test.config.hook.pytest_runtest_protocol(item=test, nextitem=next_test)
             if session.shouldstop:
                 raise session.Interrupted(session.shouldstop)
+        finished_signal.set()
 
-    proc = multiprocessing.Process(target=run_batch, args=(batch['tests'],))
+    proc = multiprocessing.Process(target=run_batch, args=(batch['tests'], synchronization['trigger_process_loop']))
     with synchronization['processes_lock']:
         proc.start()
         pid = proc.pid
         synchronization['running_pids'][pid] = True
         synchronization['processes'][pid] = proc
+    synchronization['trigger_process_loop'].set()
 
 
 def reap_finished_processes():
@@ -243,70 +249,73 @@ def run_batched_tests(batches, session, num_processes):
         strategy = batches[batch]['strategy']
         if strategy == 'free':
             for test in batches[batch]['tests']:
-                synchronization['proc_signal'].wait()
-                synchronization['proc_signal'].clear()
+                synchronization['can_submit_tests'].wait()
+                synchronization['can_submit_tests'].clear()
                 submit_test_to_process(test, session)
                 reap_finished_processes()
         elif strategy == 'serial':
-            synchronization['proc_signal'].wait()
-            synchronization['proc_signal'].clear()
+            synchronization['can_submit_tests'].wait()
+            synchronization['can_submit_tests'].clear()
             submit_batch_to_process(batches[batch], session)
             reap_finished_processes()
         elif strategy == 'isolated_free':
-            synchronization['processes_empty'].wait()
-            synchronization['processes_empty'].clear()
+            synchronization['no_running_tests'].wait()
+            synchronization['no_running_tests'].clear()
             for test in batches[batch]['tests']:
-                synchronization['proc_signal'].wait()
-                synchronization['proc_signal'].clear()
+                synchronization['can_submit_tests'].wait()
+                synchronization['can_submit_tests'].clear()
                 submit_test_to_process(test, session)
                 reap_finished_processes()
-            synchronization['processes_empty'].wait()
-            synchronization['processes_empty'].clear()
+            synchronization['no_running_tests'].wait()
+            synchronization['no_running_tests'].clear()
         elif strategy == 'isolated_serial':
-            synchronization['processes_empty'].wait()
-            synchronization['processes_empty'].clear()
-            synchronization['proc_signal'].wait()
-            synchronization['proc_signal'].clear()
+            synchronization['no_running_tests'].wait()
+            synchronization['no_running_tests'].clear()
             submit_batch_to_process(batches[batch], session)
             reap_finished_processes()
-            synchronization['processes_empty'].wait()
-            synchronization['processes_empty'].clear()
+            synchronization['no_running_tests'].wait()
+            synchronization['no_running_tests'].clear()
         else:
             raise Exception('Unknown strategy {}'.format(strategy))
 
-    synchronization['processes_empty'].wait()
+    synchronization['no_running_tests'].wait()
+    synchronization['reap_process_loop'].set()
+    reap_finished_processes()
 
 
 def process_loop(num_processes):
     while True:
+        triggered = synchronization['trigger_process_loop'].wait(.025)
+        if triggered:
+            synchronization['trigger_process_loop'].clear()
+
         with synchronization['processes_lock']:
             pid_list = list(synchronization['running_pids'].keys())
-            if not pid_list:
-                synchronization['processes_empty'].set()
-            elif synchronization['processes_empty'].is_set():
-                synchronization['processes_empty'].clear()
+        if not pid_list:
+            synchronization['no_running_tests'].set()
+        elif synchronization['no_running_tests'].is_set():
+            synchronization['no_running_tests'].clear()
 
-            num_pids = len(pid_list)
+        num_pids = len(pid_list)
 
-            for pid in pid_list:
-                try:
-                    proc = psutil.Process(pid)
-                    if proc.status() not in ('stopped', 'zombie'):
-                        continue
-                except psutil.NoSuchProcess:
-                    pass
-                except IOError:
+        for pid in pid_list:
+            try:
+                proc = psutil.Process(pid)
+                if proc.status() not in ('stopped', 'zombie'):
                     continue
+            except psutil.NoSuchProcess:
+                pass
+            except IOError:
+                continue
+            with synchronization['processes_lock']:
                 del synchronization['running_pids'][pid]
                 synchronization['finished_pids'][pid] = True
-                num_pids -= 1
+            num_pids -= 1
 
         if synchronization['reap_process_loop'].is_set() and len(synchronization['running_pids']) == 0:
             return
-        if num_pids < num_processes and not synchronization['proc_signal'].is_set():
-            synchronization['proc_signal'].set()
-
-        time.sleep(.001)  # TODO: Use a callback/Event() system
+        if num_pids < num_processes and not synchronization['can_submit_tests'].is_set():
+            synchronization['can_submit_tests'].set()
 
 
 def pytest_runtestloop(session):
@@ -325,8 +334,10 @@ def pytest_runtestloop(session):
         synchronization['stats_lock'] = multiprocessing.Lock()
         synchronization['stats']['failed'] = False
 
-        synchronization['proc_signal'] = multiprocessing.Event()
-        synchronization['processes_empty'] = multiprocessing.Event()
+        synchronization['can_submit_tests'] = multiprocessing.Event()
+        synchronization['trigger_process_loop'] = multiprocessing.Event()
+        synchronization['trigger_process_loop'].set()
+        synchronization['no_running_tests'] = multiprocessing.Event()
         synchronization['reap_process_loop'] = multiprocessing.Event()
         synchronization['processes_lock'] = multiprocessing.Lock()
         synchronization['running_pids'] = manager.dict()
