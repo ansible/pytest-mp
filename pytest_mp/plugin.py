@@ -123,7 +123,7 @@ def get_item_batch_name_and_strategy(item):
 
     # In general, multiple mp_group decorations aren't supported.
     # This is a best effort, since kwargs will be overwritten.
-    distilled = list(marker_args) + marker_kwargs.values()
+    distilled = list(marker_args) + list(marker_kwargs.values())
     if len(distilled) > 2 \
        or (len(distilled) == 2 and 'strategy' not in marker_kwargs
            and not any([x in distilled for x in ('free', 'isolated_free', 'serial', 'isolated_serial')])):
@@ -170,7 +170,7 @@ def batch_tests(session):
         for test in batches[group]['tests']:
             total_tests += 1
 
-    print 'There should be {} tests run.'.format(total_tests)
+    print('There should be {} tests run.'.format(total_tests))
 
     return batches
 
