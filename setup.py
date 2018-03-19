@@ -5,7 +5,7 @@ from setuptools.command.test import test as TestCommand
 from setuptools import setup, find_packages
 
 
-version = '0.0.2'
+version = '0.0.3'
 
 
 class Tox(TestCommand):
