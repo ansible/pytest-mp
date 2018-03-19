@@ -2,6 +2,7 @@ from contextlib import contextmanager
 import multiprocessing
 import collections
 
+from _pytest import main
 import psutil
 import pytest
 
@@ -142,7 +143,7 @@ def get_item_batch_name_and_strategy(item):
 
 
 def batch_tests(session):
-    batches = collections.defaultdict(dict)
+    batches = collections.OrderedDict()
 
     for item in session.items:
         group_name, group_strategy = get_item_batch_name_and_strategy(item)
@@ -150,8 +151,7 @@ def batch_tests(session):
         if group_name is None:
             item.add_marker(pytest.mark.mp_group_info.with_args(group='ungrouped', strategy='free'))
             if 'ungrouped' not in batches:
-                batches['ungrouped']['strategy'] = 'free'
-                batches['ungrouped']['tests'] = []
+                batches['ungrouped'] = dict(strategy='free', tests=[])
             batches['ungrouped']['tests'].append(item)
         else:
             if group_strategy is None:
@@ -159,10 +159,9 @@ def batch_tests(session):
             elif 'strategy' in batches.get(group_name, []) and batches[group_name]['strategy'] != group_strategy:
                 raise Exception("{} already has specified strategy {}."
                                 .format(group_name, batches[group_name]['strategy']))
-            batches[group_name]['strategy'] = group_strategy
+            if group_name not in batches:
+                batches[group_name] = dict(strategy=group_strategy, tests=[])
             item.add_marker(pytest.mark.mp_group_info.with_args(group=group_name, strategy=group_strategy))
-            if 'tests' not in batches[group_name]:
-                batches[group_name]['tests'] = []
             batches[group_name]['tests'].append(item)
 
     total_tests = 0
@@ -328,32 +327,33 @@ def pytest_runtestloop(session):
 
     batches = batch_tests(session)
 
-    if use_mp and num_processes:
-        synchronization['stats'] = manager.dict()
-        synchronization['stats_lock'] = multiprocessing.Lock()
-        synchronization['stats']['failed'] = False
+    if not use_mp or not num_processes:
+        return main.pytest_runtestloop(session)
 
-        synchronization['can_submit_tests'] = multiprocessing.Event()
-        synchronization['trigger_process_loop'] = multiprocessing.Event()
-        synchronization['trigger_process_loop'].set()
-        synchronization['no_running_tests'] = multiprocessing.Event()
-        synchronization['reap_process_loop'] = multiprocessing.Event()
-        synchronization['processes_lock'] = multiprocessing.Lock()
-        synchronization['running_pids'] = manager.dict()
-        synchronization['finished_pids'] = manager.dict()
-        synchronization['processes'] = dict()
+    synchronization['stats'] = manager.dict()
+    synchronization['stats_lock'] = multiprocessing.Lock()
+    synchronization['stats']['failed'] = False
 
-        proc_loop = multiprocessing.Process(target=process_loop, args=(num_processes,))
-        proc_loop.start()
+    synchronization['can_submit_tests'] = multiprocessing.Event()
+    synchronization['trigger_process_loop'] = multiprocessing.Event()
+    synchronization['trigger_process_loop'].set()
+    synchronization['no_running_tests'] = multiprocessing.Event()
+    synchronization['reap_process_loop'] = multiprocessing.Event()
+    synchronization['processes_lock'] = multiprocessing.Lock()
+    synchronization['running_pids'] = manager.dict()
+    synchronization['finished_pids'] = manager.dict()
+    synchronization['processes'] = dict()
+
+    proc_loop = multiprocessing.Process(target=process_loop, args=(num_processes,))
+    proc_loop.start()
 
     run_batched_tests(batches, session, num_processes)
 
-    if use_mp and num_processes:
-        synchronization['reap_process_loop'].set()
-        proc_loop.join()
+    synchronization['reap_process_loop'].set()
+    proc_loop.join()
 
-        if synchronization['stats']['failed']:
-            session.testsfailed = True
+    if synchronization['stats']['failed']:
+        session.testsfailed = True
 
     return True
 
