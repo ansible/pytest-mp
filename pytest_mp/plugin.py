@@ -295,7 +295,7 @@ def pytest_runtestloop(session):
         raise session.Interrupted("{} errors during collection".format(session.testsfailed))
 
     if session.config.option.collectonly:
-        raise True
+        return True
 
     use_mp, num_processes = load_mp_options(session)
 
