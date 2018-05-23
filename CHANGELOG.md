@@ -1,3 +1,6 @@
+## 0.0.4
+* Minor bugfix for calling pytest with --collectonly
+
 ## 0.0.3
 * Use _pytest.main.pytest_runtestloop when not using mp
 * Preserve order of batched tests.
