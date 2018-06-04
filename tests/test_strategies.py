@@ -1,3 +1,5 @@
+import pytest
+
 
 def test_unknown_strategy_forbidden(testdir):
     testdir.makepyfile("""
@@ -201,3 +203,36 @@ def test_isolated_serial(testdir):
 
     result = testdir.runpytest('--mp')
     result.assert_outcomes(passed=15)
+
+
+@pytest.mark.parametrize("c", range(0, 10))
+@pytest.mark.parametrize("strategy1", ["isolated_free", "isolated_serial"])
+@pytest.mark.parametrize("strategy2", ["free", "serial", "isolated_free", "isolated_serial"])
+def test_isolated_with_another_strategy(c, strategy1, strategy2, testdir, tmpdir):
+    testdir.makepyfile("""
+        import pytest
+        import py, time, random
+
+        @pytest.mark.mp_group('TestGroup1', '{strategy1}')
+        def test_strategy1():
+            tempdir = py.path.local('{tmpdir_path}')
+            assert len(tempdir.listdir()) == 0, tempdir.listdir()
+            newdir = tempdir.mkdir('strategy1')
+            time.sleep(random.random()*0.1)
+            assert len(tempdir.listdir()) == 1, tempdir.listdir()
+            time.sleep(random.random()*0.1)
+            newdir.remove()
+
+        @pytest.mark.mp_group('TestGroup2', '{strategy2}')
+        def test_strategy2():
+            tempdir = py.path.local('{tmpdir_path}')
+            assert len(tempdir.listdir()) == 0, tempdir.listdir()
+            newdir = tempdir.mkdir('strategy2')
+            time.sleep(random.random()*0.1)
+            assert len(tempdir.listdir()) == 1, tempdir.listdir()
+            time.sleep(random.random()*0.1)
+            newdir.remove()
+    """.format(tmpdir_path=tmpdir.strpath, strategy1=strategy1, strategy2=strategy2))
+
+    result = testdir.runpytest('--mp', '--np=2')
+    result.assert_outcomes(passed=2)

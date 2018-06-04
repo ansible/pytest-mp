@@ -225,15 +225,30 @@ def submit_batch_to_process(batch, session):
 def reap_finished_processes():
     with synchronization['processes_lock']:
         pid_list = list(synchronization['finished_pids'].keys())
+        synchronization['finished_pids'].clear()
 
     for pid in pid_list:
         synchronization['processes'][pid].join()
         del synchronization['processes'][pid]
-        del synchronization['finished_pids'][pid]
+
+
+def wait_until_no_running():
+    wait_until_can_submit(1)
+
+
+def wait_until_can_submit(num_processes):
+    while True:
+        with synchronization['processes_lock']:
+            num_pids = len(synchronization['running_pids'])
+
+        if num_pids < num_processes:
+            return
+
+        synchronization['process_finished'].wait()
+        synchronization['process_finished'].clear()
 
 
 def run_batched_tests(batches, session, num_processes):
-
     sorting = dict(free=0, serial=0, isolated_free=1, isolated_serial=2)
 
     batch_names = sorted(batches.keys(), key=lambda x: sorting.get(batches[x]['strategy'], 3))
@@ -248,36 +263,29 @@ def run_batched_tests(batches, session, num_processes):
         strategy = batches[batch]['strategy']
         if strategy == 'free':
             for test in batches[batch]['tests']:
-                synchronization['can_submit_tests'].wait()
-                synchronization['can_submit_tests'].clear()
+                wait_until_can_submit(num_processes)
                 submit_test_to_process(test, session)
                 reap_finished_processes()
         elif strategy == 'serial':
-            synchronization['can_submit_tests'].wait()
-            synchronization['can_submit_tests'].clear()
+            wait_until_can_submit(num_processes)
             submit_batch_to_process(batches[batch], session)
             reap_finished_processes()
         elif strategy == 'isolated_free':
-            synchronization['no_running_tests'].wait()
-            synchronization['no_running_tests'].clear()
+            wait_until_no_running()
             for test in batches[batch]['tests']:
-                synchronization['can_submit_tests'].wait()
-                synchronization['can_submit_tests'].clear()
+                wait_until_can_submit(num_processes)
                 submit_test_to_process(test, session)
                 reap_finished_processes()
-            synchronization['no_running_tests'].wait()
-            synchronization['no_running_tests'].clear()
+            wait_until_no_running()
         elif strategy == 'isolated_serial':
-            synchronization['no_running_tests'].wait()
-            synchronization['no_running_tests'].clear()
+            wait_until_no_running()
             submit_batch_to_process(batches[batch], session)
             reap_finished_processes()
-            synchronization['no_running_tests'].wait()
-            synchronization['no_running_tests'].clear()
+            wait_until_no_running()
         else:
             raise Exception('Unknown strategy {}'.format(strategy))
 
-    synchronization['no_running_tests'].wait()
+    wait_until_no_running()
     reap_finished_processes()
 
 
@@ -289,10 +297,6 @@ def process_loop(num_processes):
 
         with synchronization['processes_lock']:
             pid_list = list(synchronization['running_pids'].keys())
-        if not pid_list:
-            synchronization['no_running_tests'].set()
-        elif synchronization['no_running_tests'].is_set():
-            synchronization['no_running_tests'].clear()
 
         num_pids = len(pid_list)
 
@@ -308,12 +312,12 @@ def process_loop(num_processes):
             with synchronization['processes_lock']:
                 del synchronization['running_pids'][pid]
                 synchronization['finished_pids'][pid] = True
+
+            synchronization['process_finished'].set()
             num_pids -= 1
 
         if synchronization['reap_process_loop'].is_set() and len(synchronization['running_pids']) == 0:
             return
-        if num_pids < num_processes and not synchronization['can_submit_tests'].is_set():
-            synchronization['can_submit_tests'].set()
 
 
 def pytest_runtestloop(session):
@@ -334,10 +338,9 @@ def pytest_runtestloop(session):
     synchronization['stats_lock'] = multiprocessing.Lock()
     synchronization['stats']['failed'] = False
 
-    synchronization['can_submit_tests'] = multiprocessing.Event()
     synchronization['trigger_process_loop'] = multiprocessing.Event()
     synchronization['trigger_process_loop'].set()
-    synchronization['no_running_tests'] = multiprocessing.Event()
+    synchronization['process_finished'] = multiprocessing.Event()
     synchronization['reap_process_loop'] = multiprocessing.Event()
     synchronization['processes_lock'] = multiprocessing.Lock()
     synchronization['running_pids'] = manager.dict()
