@@ -291,7 +291,7 @@ def run_batched_tests(batches, session, num_processes):
 
 def process_loop(num_processes):
     while True:
-        triggered = synchronization['trigger_process_loop'].wait(.025)
+        triggered = synchronization['trigger_process_loop'].wait(.1)
         if triggered:
             synchronization['trigger_process_loop'].clear()
 
