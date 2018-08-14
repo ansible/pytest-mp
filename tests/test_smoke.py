@@ -28,7 +28,7 @@ def test_all_pass(testdir, strategy):
 
     """.format(strategy))
 
-    result = testdir.runpytest('--mp')
+    result = testdir.runpytest_subprocess('--mp')
     result.assert_outcomes(passed=15)
     assert result.ret == 0
 
@@ -57,7 +57,7 @@ def test_pass_and_fail(testdir, strategy):
 
     """.format(strategy))
 
-    result = testdir.runpytest('--mp')
+    result = testdir.runpytest_subprocess('--mp')
     result.assert_outcomes(passed=12, failed=3)
     assert result.ret == 1
 
@@ -91,7 +91,7 @@ def test_pass_fail_and_skip(testdir, strategy):
 
     """.format(strategy))
 
-    result = testdir.runpytest('--mp')
+    result = testdir.runpytest_subprocess('--mp')
     result.assert_outcomes(passed=9, failed=3, skipped=3)
     assert result.ret == 1
 
@@ -132,6 +132,6 @@ def test_pass_fail_skip_and_error(testdir, strategy):
 
     """.format(strategy))
 
-    result = testdir.runpytest('--mp')
+    result = testdir.runpytest_subprocess('--mp')
     result.assert_outcomes(passed=6, failed=3, skipped=3, error=3)
     assert result.ret == 1

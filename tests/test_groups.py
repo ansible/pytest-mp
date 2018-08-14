@@ -31,7 +31,7 @@ def test_group_info_marker_kwargs_from_args(testdir, use_mp):
 
     """)
 
-    result = testdir.runpytest('--mp' if use_mp else '')
+    result = testdir.runpytest_subprocess('--mp' if use_mp else '')
     result.assert_outcomes(passed=4)
     assert result.ret == 0
 
@@ -66,7 +66,7 @@ def test_group_info_marker_kwargs_from_kwargs(testdir, use_mp):
 
     """)
 
-    result = testdir.runpytest('--mp' if use_mp else '')
+    result = testdir.runpytest_subprocess('--mp' if use_mp else '')
     result.assert_outcomes(passed=4)
     assert result.ret == 0
 
@@ -95,7 +95,7 @@ def test_group_info_marker_kwargs_from_args_and_kwargs(testdir, use_mp):
 
     """)
 
-    result = testdir.runpytest('--mp' if use_mp else '')
+    result = testdir.runpytest_subprocess('--mp' if use_mp else '')
     result.assert_outcomes(passed=3)
     assert result.ret == 0
 
@@ -113,7 +113,7 @@ def test_multiple_groups_disallowed_args(testdir):
 
     """)
 
-    result = testdir.runpytest('--mp')
+    result = testdir.runpytest_subprocess('--mp')
     result.stdout.fnmatch_lines(['*Exception: Detected too many mp_group values for test_one',
                                  '*= no tests ran in * seconds =*'])
     assert result.ret == 3
@@ -134,7 +134,7 @@ def test_multiple_groups_disallowed_args_and_kwargs(testdir):
 
     """)
 
-    result = testdir.runpytest('--mp')
+    result = testdir.runpytest_subprocess('--mp')
     result.stdout.fnmatch_lines(['*Exception: Detected too many mp_group values for test_one',
                                  '*= no tests ran in * seconds =*'])
     assert result.ret == 3
@@ -165,6 +165,6 @@ def test_confirm_ordering_by_group_strategy(testdir):
             assert True
 
     """)
-    result = testdir.runpytest('-vs', '--mp')
+    result = testdir.runpytest_subprocess('-vs', '--mp')
     result.assert_outcomes(passed=26)
     assert result.ret == 0

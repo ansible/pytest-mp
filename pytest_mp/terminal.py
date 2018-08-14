@@ -1,5 +1,7 @@
 from _pytest.terminal import TerminalReporter
 
+from plugin import synchronization, mp_options
+
 
 # Taken from pytest/_pytest/terminal.py
 # and made process safe by avoiding use of `setdefault()`
@@ -22,6 +24,11 @@ class MPTerminalReporter(TerminalReporter):
             self.stats[key] = manager.list()
         self.stats_lock = manager.Lock()
         self._progress_items_reported_proxy = manager.Value('i', 0)
+
+    def pytest_runtest_logstart(self, nodeid, location):
+        TerminalReporter.pytest_runtest_logstart(self, nodeid, location)
+        if getattr(mp_options, 'use_mp', False):
+            self.write("@clique {} ".format(synchronization.get('clique_id', 0)))
 
     def pytest_collectreport(self, report):
         # Show errors occurred during the collection instantly.
