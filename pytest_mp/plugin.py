@@ -112,7 +112,7 @@ def load_mp_options(session):
 
 
 def get_item_batch_name_and_strategy(item):
-    marker = item.get_marker('mp_group')
+    marker = item.get_closest_marker('mp_group')
     if marker is None:
         return None, None
 
