@@ -249,9 +249,9 @@ def wait_until_can_submit(num_processes):
 
 
 def run_batched_tests(batches, session, num_processes):
-    sorting = dict(free=2, serial=2, isolated_free=1, isolated_serial=0)
+    sorting = dict(free=3, serial=2, isolated_free=1, isolated_serial=0)
 
-    batch_names = sorted(batches.keys(), key=lambda x: sorting.get(batches[x]['strategy'], 3))
+    batch_names = sorted(batches.keys(), key=lambda x: sorting.get(batches[x]['strategy'], 4))
 
     if not num_processes:
         for i, batch in enumerate(batch_names):
