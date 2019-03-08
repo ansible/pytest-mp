@@ -46,8 +46,7 @@ def test_ini_without_cmdline(testdir, ini_content, mp, num_processes):
     """.format(mp, num_processes))
 
     result = testdir.runpytest()
-
-    result.stdout.fnmatch_lines(['*= 2 passed in * seconds =*'])
+    result.stdout.re_match_lines(['.*2 passed.*in.*seconds.*'])
     assert result.ret == 0
 
 
@@ -88,5 +87,5 @@ def test_ini_with_cmdline(testdir, cmd_mp, cmd_num_processes, ini_content, ini_m
 
     result = testdir.runpytest(*cmd_options)
 
-    result.stdout.fnmatch_lines(['*= 2 passed in * seconds =*'])
+    result.stdout.re_match_lines(['.*2 passed.*in.*seconds.*'])
     assert result.ret == 0

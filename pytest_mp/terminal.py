@@ -42,7 +42,8 @@ class MPTerminalReporter(TerminalReporter):
 
     def pytest_runtest_logreport(self, report):
         rep = report
-        res = self.config.hook.pytest_report_teststatus(report=rep)
+        # following example here https://github.com/pytest-dev/pytest/blob/03ef54670662def8422ec983969b81250d543433/src/_pytest/terminal.py#L387
+        res = self.config.hook.pytest_report_teststatus(report=rep, config=self.config)
         cat, letter, word = res
 
         # This helps make TerminalReporter process-safe.
