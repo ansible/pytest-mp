@@ -8,24 +8,24 @@ def test_group_info_marker_kwargs_from_args(testdir, use_mp):
 
         @pytest.mark.mp_group('One')
         def test_one(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'One'
             assert kwargs['strategy'] == 'free'
 
         @pytest.mark.mp_group('One')
         def test_two(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'One'
             assert kwargs['strategy'] == 'free'
 
         @pytest.mark.mp_group('Two', 'serial')
         def test_three(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'Two'
             assert kwargs['strategy'] == 'serial'
 
         def test_four(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'ungrouped'
             assert kwargs['strategy'] == 'free'
 
@@ -43,24 +43,24 @@ def test_group_info_marker_kwargs_from_kwargs(testdir, use_mp):
 
         @pytest.mark.mp_group(group='One')
         def test_one(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'One'
             assert kwargs['strategy'] == 'free'
 
         @pytest.mark.mp_group(group='One')
         def test_two(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'One'
             assert kwargs['strategy'] == 'free'
 
         @pytest.mark.mp_group(group='Two', strategy='serial')
         def test_three(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'Two'
             assert kwargs['strategy'] == 'serial'
 
         def test_four(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'ungrouped'
             assert kwargs['strategy'] == 'free'
 
@@ -78,18 +78,18 @@ def test_group_info_marker_kwargs_from_args_and_kwargs(testdir, use_mp):
 
         @pytest.mark.mp_group('One', strategy='serial')
         def test_one(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'One'
             assert kwargs['strategy'] == 'serial'
 
         @pytest.mark.mp_group(group='One')
         def test_two(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'One'
             assert kwargs['strategy'] == 'serial'  # inherited
 
         def test_three(request):
-            kwargs = request.node.get_marker('mp_group_info').kwargs
+            kwargs = request.node.get_closest_marker('mp_group_info').kwargs
             assert kwargs['group'] == 'ungrouped'
             assert kwargs['strategy'] == 'free'
 

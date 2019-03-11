@@ -112,6 +112,11 @@ def load_mp_options(session):
 
 
 def get_item_batch_name_and_strategy(item):
+    # First check if there is more than one mark for mp_group
+    markers = [mark for mark in item.iter_markers() if mark.name == 'mp_group']
+    if len(markers) > 1:
+        raise Exception('Detected too many mp_group values for {}'.format(item.name))
+
     marker = item.get_closest_marker('mp_group')
     if marker is None:
         return None, None

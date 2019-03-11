@@ -13,7 +13,7 @@ def test_isolated_trail_separation(testdir):
 
         @contextmanager
         def _trail_fixture(num, mp_trail, request):
-            group = request.node.get_marker('mp_group').kwargs['group']
+            group = request.node.get_closest_marker('mp_group').kwargs['group']
             group += num
             with mp_trail(num) as start:
                 if start:
