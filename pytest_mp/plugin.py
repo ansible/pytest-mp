@@ -381,6 +381,8 @@ def pytest_configure(config):
                             "mp_group('GroupName', strategy): test (suite) is in named "
                             "grouped w/ desired strategy: 'free' (default), 'serial', "
                             "'isolated_free', or 'isolated_serial'.")
+    config.addinivalue_line('markers',
+                            "mp_group_info: internal use only")
 
     standard_reporter = config.pluginmanager.get_plugin('terminalreporter')
     if standard_reporter:
