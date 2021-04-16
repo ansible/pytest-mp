@@ -27,11 +27,24 @@ def pytest_addoption(parser):
                     help="show failures and errors instantly as they occur (disabled by default).")
 
 
+# from multiprocessing.managers import SyncManager, AcquirerProxy
+
+global_lock = multiprocessing.Lock()
+
+
+# SyncManager.register('Lock', multiprocessing.Lock, AcquirerProxy)
+
+from contextvars import ContextVar
+
+fixture_lock = ContextVar("Lock")
+# processes_lock = ContextVar("Lock")
+
+
 manager = multiprocessing.Manager()
 # Used for "global" synchronization access.
 synchronization = dict(manager=manager)
 synchronization['fixture_message_board'] = manager.dict()
-synchronization['fixture_lock'] = multiprocessing.Lock()
+# fixture_lock.get() = manager.Lock()
 
 state_fixtures = dict(use_mp=False, num_processes=None)
 
@@ -53,7 +66,7 @@ def mp_message_board():
 
 @pytest.fixture(scope='session')
 def mp_lock():
-    return synchronization['fixture_lock']
+    return fixture_lock.get()
 
 
 @pytest.fixture(scope='session')
@@ -67,8 +80,8 @@ def mp_trail():
 
         consumer_key = name + '__consumers__'
         import os
-        with synchronization['fixture_lock']:
-            print("LOCK", os.getpid(), id(synchronization['fixture_lock']))
+        with fixture_lock.get():
+            print("LOCK", os.getpid(), id(fixture_lock.get()))
             if state == 'start':
                 if consumer_key not in message_board:
                     message_board[consumer_key] = 1
@@ -210,9 +223,10 @@ def submit_test_to_process(test, session):
     synchronization['trigger_process_loop'].set()
 
 
-def submit_batch_to_process(batch, session):
+def submit_batch_to_process(lock, batch, session):
 
-    def run_batch(tests, finished_signal):
+    def run_batch(lock, tests, finished_signal):
+        fixture_lock.set(lock)
         for i, test in enumerate(tests):
             next_test = tests[i + 1] if i + 1 < len(tests) else None
             test.config.hook.pytest_runtest_protocol(item=test, nextitem=next_test)
@@ -220,7 +234,7 @@ def submit_batch_to_process(batch, session):
                 raise session.Interrupted(session.shouldstop)
         finished_signal.set()
 
-    proc = multiprocessing.Process(target=run_batch, args=(batch['tests'], synchronization['trigger_process_loop']))
+    proc = multiprocessing.Process(target=run_batch, args=(lock, batch['tests'], synchronization['trigger_process_loop']))
     with synchronization['processes_lock']:
         proc.start()
         pid = proc.pid
@@ -256,15 +270,15 @@ def wait_until_can_submit(num_processes):
 
 
 def run_batched_tests(batches, session, num_processes):
+
+    lock = multiprocessing.Lock()
+
     sorting = dict(free=3, serial=2, isolated_free=1, isolated_serial=0)
 
-    batch_names = sorted(batches.keys(), key=lambda x: sorting.get(batches[x]['strategy'], 4))
+    # batch_names = sorted(batches.keys(), key=lambda x: sorting.get(batches[x]['strategy'], 4))
 
     if not num_processes:
-        for i, batch in enumerate(batch_names):
-            next_test = batches[batch_names[i + 1]]['tests'][0] if i + 1 < len(batch_names) else None
-            run_isolated_serial_batch(batches[batch], next_test, session)
-        return
+        num_processes = 1
 
     batch_of_tests = {i: [] for i in range(num_processes)}
     for batch in batches.values():
@@ -272,7 +286,7 @@ def run_batched_tests(batches, session, num_processes):
             batch_of_tests[i % num_processes] += [test]
 
     for _, tests in batch_of_tests.items():
-        submit_batch_to_process({"tests": tests}, session)
+        submit_batch_to_process(lock, {"tests": tests}, session)
 
     # All process finished
     reap_finished_processes()
