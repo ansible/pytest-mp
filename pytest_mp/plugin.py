@@ -1,4 +1,5 @@
 from contextlib import contextmanager
+from contextvars import ContextVar
 import multiprocessing
 import collections
 
@@ -27,18 +28,8 @@ def pytest_addoption(parser):
                     help="show failures and errors instantly as they occur (disabled by default).")
 
 
-# from multiprocessing.managers import SyncManager, AcquirerProxy
-
-global_lock = multiprocessing.Lock()
-
-
-# SyncManager.register('Lock', multiprocessing.Lock, AcquirerProxy)
-
-from contextvars import ContextVar
 
 fixture_lock = ContextVar("Lock")
-# processes_lock = ContextVar("Lock")
-
 
 manager = multiprocessing.Manager()
 # Used for "global" synchronization access.
@@ -78,10 +69,10 @@ def mp_trail():
         if state not in ('start', 'finish'):
             raise Exception('mp_trail state must be "start" or "finish": {}'.format(state))
 
-        consumer_key = name + '__consumers__'
         import os
+        consumer_key = name + '__consumers__'
         with fixture_lock.get():
-            print("LOCK", os.getpid(), id(fixture_lock.get()))
+            print("LOCK", consumer_key, os.getpid(), id(fixture_lock.get()))
             if state == 'start':
                 if consumer_key not in message_board:
                     message_board[consumer_key] = 1
@@ -95,7 +86,7 @@ def mp_trail():
                     yield False
                 else:
                     yield True
-            print("UNLOCK", os.getpid())
+            print("UNLOCK", consumer_key, os.getpid())
 
     return trail
 
@@ -270,12 +261,7 @@ def wait_until_can_submit(num_processes):
 
 
 def run_batched_tests(batches, session, num_processes):
-
     lock = multiprocessing.Lock()
-
-    sorting = dict(free=3, serial=2, isolated_free=1, isolated_serial=0)
-
-    # batch_names = sorted(batches.keys(), key=lambda x: sorting.get(batches[x]['strategy'], 4))
 
     if not num_processes:
         num_processes = 1
