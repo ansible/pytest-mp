@@ -68,7 +68,7 @@ def mp_trail():
         consumer_key = name + '__consumers__'
         import os
         with synchronization['fixture_lock']:
-            print("LOCK", os.getpid())
+            print("LOCK", os.getpid(), id(synchronization['fixture_lock']))
             if state == 'start':
                 if consumer_key not in message_board:
                     message_board[consumer_key] = 1
