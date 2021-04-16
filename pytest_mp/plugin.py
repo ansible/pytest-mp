@@ -66,7 +66,9 @@ def mp_trail():
             raise Exception('mp_trail state must be "start" or "finish": {}'.format(state))
 
         consumer_key = name + '__consumers__'
+        import os
         with synchronization['fixture_lock']:
+            print("LOCK", os.getpid())
             if state == 'start':
                 if consumer_key not in message_board:
                     message_board[consumer_key] = 1
@@ -80,6 +82,7 @@ def mp_trail():
                     yield False
                 else:
                     yield True
+            print("UNLOCK", os.getpid())
 
     return trail
 
@@ -272,8 +275,8 @@ def run_batched_tests(batches, session, num_processes):
         submit_batch_to_process({"tests": tests}, session)
 
     # All process finished
-    wait_until_can_submit(num_processes)
     reap_finished_processes()
+    wait_until_can_submit(num_processes)
 
 
 def process_loop(num_processes):
