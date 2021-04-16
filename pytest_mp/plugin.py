@@ -264,31 +264,13 @@ def run_batched_tests(batches, session, num_processes):
             run_isolated_serial_batch(batches[batch], next_test, session)
         return
 
-    for batch in batch_names:
-        strategy = batches[batch]['strategy']
-        if strategy == 'free':
-            for test in batches[batch]['tests']:
-                wait_until_can_submit(num_processes)
-                submit_test_to_process(test, session)
-                reap_finished_processes()
-        elif strategy == 'serial':
-            wait_until_can_submit(num_processes)
-            submit_batch_to_process(batches[batch], session)
-            reap_finished_processes()
-        elif strategy == 'isolated_free':
-            wait_until_no_running()
-            for test in batches[batch]['tests']:
-                wait_until_can_submit(num_processes)
-                submit_test_to_process(test, session)
-                reap_finished_processes()
-            wait_until_no_running()
-        elif strategy == 'isolated_serial':
-            wait_until_no_running()
-            submit_batch_to_process(batches[batch], session)
-            reap_finished_processes()
-            wait_until_no_running()
-        else:
-            raise Exception('Unknown strategy {}'.format(strategy))
+    batch_of_tests = {i: [] for i in range(num_processes)}
+    for batch in batches.values():
+        for i, test in enumerate(batch['tests']):
+            batch_of_tests[i % num_processes] += [test]
+
+    for _, tests in batch_of_tests.items():
+        submit_batch_to_process({"tests": tests}, session)
 
     wait_until_no_running()
     reap_finished_processes()
