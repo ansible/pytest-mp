@@ -31,7 +31,7 @@ manager = multiprocessing.Manager()
 # Used for "global" synchronization access.
 synchronization = dict(manager=manager)
 synchronization['fixture_message_board'] = manager.dict()
-synchronization['fixture_lock'] = manager.Lock()
+synchronization['fixture_lock'] = multiprocessing.Lock()
 
 state_fixtures = dict(use_mp=False, num_processes=None)
 
