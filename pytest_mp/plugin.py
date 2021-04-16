@@ -76,10 +76,9 @@ def mp_trail():
                     yield False
             else:
                 message_board[consumer_key] -= 1
-                if message_board[consumer_key]:
+                if message_board[consumer_key] > 0:
                     yield False
                 else:
-                    del message_board[consumer_key]
                     yield True
 
     return trail
@@ -272,7 +271,8 @@ def run_batched_tests(batches, session, num_processes):
     for _, tests in batch_of_tests.items():
         submit_batch_to_process({"tests": tests}, session)
 
-    wait_until_no_running()
+    # All process finished
+    wait_until_can_submit(num_processes)
     reap_finished_processes()
 
 
